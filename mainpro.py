@@ -63,7 +63,7 @@ def handle_message(message):
         
         if os.path.exists(file_path):
             with open(file_path, 'rb') as video:
-                bot.send_video(message.chat.id, video, caption="✅ Готово для @Pyhnastipets")
+                bot.send_video(message.chat.id, video, caption="✅ Готово!")
             os.remove(file_path)
             bot.delete_message(message.chat.id, msg.message_id)
         else:
