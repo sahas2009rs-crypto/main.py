@@ -4,8 +4,9 @@ import os
 import http.server
 import socketserver
 import threading
+import time
 
-# --- 1. ЖИТТЄЗАБЕЗПЕЧЕННЯ НА RENDER ---
+# --- 1. ОЖИВЛЮВАЧ ДЛЯ RENDER (Щоб не засинав) ---
 def keep_alive():
     port = int(os.environ.get("PORT", 8080))
     handler = http.server.SimpleHTTPRequestHandler
@@ -28,55 +29,54 @@ def check_sub(user_id):
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    try: bot.send_message(MY_ID, f"🔔 Юзер {message.from_user.first_name} активував бота")
+    try: bot.send_message(MY_ID, f"🔔 Юзер {message.from_user.first_name} зайшов у бот")
     except: pass
-    text = (f"👋 **Привіт! Я скачаю для тебе відео з TikTok, Instagram та YouTube.**\n\n"
-            f"✅ **Підпишись:** https://t.me/Pyhnastipets\n"
-            f"🚀 **Потім просто скинь посилання!**")
+    text = (f"👋 **Вітаю! Я скачаю відео без водяного знаку.**\n\n"
+            f"✅ **Підпишись на канал:** https://t.me/Pyhnastipets\n"
+            f"🚀 **Потім просто надішли посилання!**")
     bot.send_message(message.chat.id, text, parse_mode="Markdown")
 
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
     if not check_sub(message.from_user.id):
-        bot.send_message(message.chat.id, f"❌ Спочатку підпишись на наш канал: https://t.me/Pyhnastipets")
+        bot.send_message(message.chat.id, f"❌ Підпишись на https://t.me/Pyhnastipets")
         return
 
     url = message.text
     if "http" not in url:
-        bot.send_message(message.chat.id, "🧐 Надішли мені посилання!")
+        bot.send_message(message.chat.id, "🧐 Це не посилання!")
         return
 
-    msg = bot.send_message(message.chat.id, "⏳ Обходжу захист та завантажую відео... зазвичай це займає 10-20 секунд.")
-    
-    # Тимчасовий файл з унікальним ім'ям
+    msg = bot.send_message(message.chat.id, "⏳ Обходжу захист та завантажую відео...")
     file_path = f"video_{message.from_user.id}.mp4"
 
-    # --- СУПЕР-НАЛАШТУВАННЯ ДЛЯ ОБХОДУ ЗАХИСТУ ---
     ydl_opts = {
         'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
         'outtmpl': file_path,
         'quiet': True,
-        'no_warnings': True,
-        'ignoreerrors': True,
         'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-        'referer': 'https://www.google.com/',
     }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            if not info:
-                raise Exception("Не вдалося отримати дані")
-
+            ydl.download([url])
+        
         if os.path.exists(file_path):
             with open(file_path, 'rb') as video:
                 bot.send_video(message.chat.id, video, caption="✅ Готово для @Pyhnastipets")
             os.remove(file_path)
             bot.delete_message(message.chat.id, msg.message_id)
         else:
-            bot.edit_message_text("❌ Не вдалося обробити це посилання. Спробуй інше відео.", message.chat.id, msg.message_id)
-    except Exception as e:
-        bot.edit_message_text(f"❌ Помилка сервісу. Можливо, відео приватне або занадто велике.", message.chat.id, msg.message_id)
-        print(f"Error: {e}")
+            bot.edit_message_text("❌ Помилка завантаження.", message.chat.id, msg.message_id)
+    except:
+        bot.send_message(message.chat.id, "❌ Не вдалося скачати. Можливо, відео приватне.")
 
-bot.polling(none_stop=True)
+# --- 3. ТОЙ САМИЙ "ВІЧНИЙ ЦИКЛ" (ЗУБ ДАЮ, ПРАЦЮВАТИМЕ) ---
+while True:
+    try:
+        print("Бот запущений...")
+        bot.polling(none_stop=True, interval=0, timeout=20)
+    except Exception as e:
+        print(f"Помилка: {e}. Перезапуск через 5 секунд...")
+        time.sleep(5)
+        
