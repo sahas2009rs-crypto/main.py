@@ -79,4 +79,15 @@ while True:
     except Exception as e:
         print(f"Помилка: {e}. Перезапуск через 5 секунд...")
         time.sleep(5)
+        import time
+
+# Це змушує бота вставати самому після помилок
+while True:
+    try:
+        print("Бот запускається...")
+        bot.polling(none_stop=True, interval=0, timeout=20)
+    except Exception as e:
+        print(f"Помилка: {e}. Перезапуск за 5 секунд...")
+        time.sleep(5)
+            
         
