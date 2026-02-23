@@ -1,10 +1,22 @@
 import telebot
 import yt_dlp
 import os
+import http.server
+import socketserver
+import threading
 
-# --- НАЛАШТУВАННЯ ---
+# --- 1. ОЖИВЛЮВАЧ ДЛЯ RENDER (Щоб не було помилки Port Scan) ---
+def keep_alive():
+    port = int(os.environ.get("PORT", 8080))
+    handler = http.server.SimpleHTTPRequestHandler
+    with socketserver.TCPServer(("", port), handler) as httpd:
+        httpd.serve_forever()
+
+threading.Thread(target=keep_alive, daemon=True).start()
+
+# --- 2. НАЛАШТУВАННЯ БОТА ---
 TOKEN = '8566951931:AAEPXFvlgmfYkN1PduaAXXD9iRYRb90cpDA'
-CHANNEL_ID = '@animals5323' # Твій канал про тварин
+CHANNEL_ID = '@Pyhnastipets' # Твій новий канал
 bot = telebot.TeleBot(TOKEN)
 
 # Функція перевірки підписки
@@ -15,25 +27,26 @@ def check_sub(user_id):
             return True
         return False
     except Exception:
-        # Якщо бот не адмін, він не зможе перевірити підписку
+        # Якщо бот не адмін, він не зможе перевірити, тому пропускає
         return True 
 
 @bot.message_handler(commands=['start'])
 def start(message):
     text = (
-        f"👋 **Вітаю!**\n\n"
-        f"❗ **Для продовження підпишись на мій канал:** {CHANNEL_ID}\n\n"
+        f"👋 **Вітаю! Я допоможу скачати відео.**\n\n"
+        f"❗ **Для продовження підпишись на мій канал:**\n"
+        f"👉 https://t.me/Pyhnastipets\n\n"
         f"Після підписки просто надішли мені посилання на відео через кнопку 'Поділитися' в TikTok! 🚀"
     )
-    bot.send_message(message.chat.id, text, parse_mode="Markdown")
+    bot.send_message(message.chat.id, text, parse_mode="Markdown", disable_web_page_preview=True)
 
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
     user_id = message.from_user.id
     
-    # Перевірка на підписку
+    # Перевірка підписки
     if not check_sub(user_id):
-        bot.send_message(message.chat.id, f"❌ **Ви не підписані!**\n\nБудь ласка, підпишіться на канал {CHANNEL_ID}, щоб скачати відео.")
+        bot.send_message(message.chat.id, f"❌ **Ви не підписані!**\n\nБудь ласка, підпишіться на канал https://t.me/Pyhnastipets, щоб скачувати відео.")
         return
 
     url = message.text
@@ -55,13 +68,12 @@ def handle_message(message):
             ydl.download([url])
         
         with open(file_path, 'rb') as video:
-            # Тільки відео та назва каналу
-            bot.send_video(message.chat.id, video, caption=f"✅ Готово! {CHANNEL_ID}")
+            bot.send_video(message.chat.id, video, caption=f"✅ Готово! @Pyhnastipets")
         
         os.remove(file_path)
         bot.delete_message(message.chat.id, msg.message_id)
     except Exception:
-        bot.send_message(message.chat.id, "❌ Помилка завантаження. Спробуй ще раз через 'Поділитися'.")
+        bot.send_message(message.chat.id, "❌ Помилка. Спробуй ще раз через 'Поділитися'.")
 
 bot.polling(none_stop=True)
-    
+        
